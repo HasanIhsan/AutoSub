@@ -1,18 +1,42 @@
 import whisper
 
-# Load the best (largest) model for highest transcription accuracy.
-model = whisper.load_model("large")
+def load_whisper_model():
+    """Load the Whisper AI model with the best accuracy."""
+    print("Loading Whisper model...")
+    return whisper.load_model("large")
 
-print('audio loaded!')
-# Replace 'your_audio_file.ext' with your audio file's path (e.g., "audio.mp3").
-audio_file = "audio/autosubs-exported-audio.wav"
+def transcribe_audio(model, audio_path):
+    """Transcribe the given audio file using the Whisper model."""
+    print("Transcribing Audio...")
+    return model.transcribe(audio_path)
 
-print('Transcribing Audio...')
-# Transcribe the audio file.
-result = model.transcribe(audio_file)
+def save_transcription(transcription, output_file, one_word_per_line=False):
+    """
+    Save the transcribed text to a file.
+    
+    - If `one_word_per_line` is True, each word appears on a new line.
+    - Otherwise, the full sentence is written normally.
+    """
+    text = transcription["text"]
+    
+    if one_word_per_line:
+        words = text.split()  # Split text into words
+        text = "\n".join(words)  # Join with newline for 1 word per line
 
-# Save the transcribed text to a file.
-with open("transcript.txt", "w") as f:
-    f.write(result["text"])
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(text)
+    
+    print(f"Transcription saved to {output_file}")
 
-print("Transcription complete. Check transcript.txt for the output.")
+def main():
+    """Main function to load the model, transcribe, and save the result."""
+    audio_file = "audio/autosubs-exported-audio.wav"
+    output_file = "transcript.txt"
+    one_word_per_line = True  # Change this to False if you want normal output
+
+    model = load_whisper_model()
+    result = transcribe_audio(model, audio_file)
+    save_transcription(result, output_file, one_word_per_line)
+
+if __name__ == "__main__":
+    main()
