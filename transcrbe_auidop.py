@@ -10,18 +10,26 @@ def transcribe_audio(model, audio_path):
     print("Transcribing Audio...")
     return model.transcribe(audio_path)
 
-def save_transcription(transcription, output_file, one_word_per_line=False):
+def save_transcription(transcription, output_file, words_per_subtitle=1):
     """
-    Save the transcribed text to a file.
+    Save the transcribed text to a file with a specified number of words per subtitle.
     
-    - If `one_word_per_line` is True, each word appears on a new line.
-    - Otherwise, the full sentence is written normally.
+    Parameters:
+    - transcription: The transcription result from Whisper.
+    - output_file: The file path where the transcription will be saved.
+    - words_per_subtitle: Number of words to group per line. 
+      For example, 3 will output 3 words per subtitle (line).
     """
     text = transcription["text"]
     
-    if one_word_per_line:
-        words = text.split()  # Split text into words
-        text = "\n".join(words)  # Join with newline for 1 word per line
+    # If words_per_subtitle is set to a positive integer, format the text accordingly.
+    if words_per_subtitle > 0:
+        words = text.split()
+        lines = [
+            " ".join(words[i:i+words_per_subtitle])
+            for i in range(0, len(words), words_per_subtitle)
+        ]
+        text = "\n".join(lines)
 
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(text)
@@ -32,11 +40,15 @@ def main():
     """Main function to load the model, transcribe, and save the result."""
     audio_file = "audio/autosubs-exported-audio.wav"
     output_file = "transcript.txt"
-    one_word_per_line = True  # Change this to False if you want normal output
+    
+    # Set how many words you want per subtitle (line)
+    words_per_subtitle = 3  # Change this to any number you prefer
 
+    
+    
     model = load_whisper_model()
     result = transcribe_audio(model, audio_file)
-    save_transcription(result, output_file, one_word_per_line)
+    save_transcription(result, output_file, words_per_subtitle)
 
 if __name__ == "__main__":
     main()
