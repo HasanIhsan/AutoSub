@@ -1,28 +1,50 @@
 import whisper
 
-def load_whisper_model():
+def load_whisper_model(model_size):
     """Load the Whisper AI model with the best accuracy."""
     print("Loading Whisper model...")
-    return whisper.load_model("large")
+    return whisper.load_model(model_size)
 
-def transcribe_audio(model, audio_path):
+def get_language_code(language_str):
+    """
+    Convert a common language name to its ISO code.
+    
+    If the user enters "detect", returns None to allow auto-detection.
+    """
+    if language_str.lower() == "detect":
+        return None
+    
+    # Mapping common language names to their ISO codes.
+    language_mapping = {
+        "english": "en",
+        "french": "fr",
+        "spanish": "es",
+        "german": "de",
+        "italian": "it",
+        "portuguese": "pt",
+        # Add additional mappings as needed.
+    }
+    # If the language is not in the mapping, assume the user provided a valid code.
+    return language_mapping.get(language_str.lower(), language_str.lower())
+
+def transcribe_audio(model, audio_path, language=None):
     """Transcribe the given audio file using the Whisper model."""
     print("Transcribing Audio...")
-    return model.transcribe(audio_path)
+    # If language is None, Whisper will auto-detect the language.
+    return model.transcribe(audio_path, language=language)
 
 def save_transcription(transcription, output_file, words_per_subtitle=1):
     """
     Save the transcribed text to a file with a specified number of words per subtitle.
     
     Parameters:
-    - transcription: The transcription result from Whisper.
-    - output_file: The file path where the transcription will be saved.
-    - words_per_subtitle: Number of words to group per line. 
-      For example, 3 will output 3 words per subtitle (line).
+      - transcription: The transcription result from Whisper.
+      - output_file: The file path where the transcription will be saved.
+      - words_per_subtitle: Number of words to group per line.
+        For example, 3 will output 3 words per subtitle (line).
     """
     text = transcription["text"]
     
-    # If words_per_subtitle is set to a positive integer, format the text accordingly.
     if words_per_subtitle > 0:
         words = text.split()
         lines = [
@@ -42,12 +64,17 @@ def main():
     output_file = "transcript.txt"
     
     # Set how many words you want per subtitle (line)
-    words_per_subtitle = 3  # Change this to any number you prefer
+    words_per_subtitle = 1  # Change this to any number you prefer
 
+    # Choose the model size (e.g., "large", "medium", "small", "tiny")
+    model_size = "large"
     
+    # Prompt the user to enter the language. Enter language (e.g., English, French) or type 'detect' for auto-detection:
+    language_input = "english"
+    language = get_language_code(language_input)
     
-    model = load_whisper_model()
-    result = transcribe_audio(model, audio_file)
+    model = load_whisper_model(model_size)
+    result = transcribe_audio(model, audio_file, language)
     save_transcription(result, output_file, words_per_subtitle)
 
 if __name__ == "__main__":
