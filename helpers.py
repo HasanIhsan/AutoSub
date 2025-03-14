@@ -1,7 +1,7 @@
 def get_language_code(language_str):
     """
     Convert a common language name to its ISO code.
-    If the user enters "detect", returns None to allow auto-detection.
+    If the user enters "detect", returns None to allow auto-detection. (3/13/25)
     """
     if language_str.lower() == "detect":
         return None
@@ -13,13 +13,12 @@ def get_language_code(language_str):
         "german": "de",
         "italian": "it",
         "portuguese": "pt",
-        # Add additional mappings as needed.
     }
     return language_mapping.get(language_str.lower(), language_str.lower())
 
 def format_timestamp(seconds):
     """
-    Convert seconds (float) into an SRT timestamp format (HH:MM:SS,mmm).
+    Convert seconds (float) into an SRT timestamp format (HH:MM:SS,mmm). (3/13/25)
     """
     hours = int(seconds // 3600)
     minutes = int((seconds % 3600) // 60)
