@@ -6,8 +6,8 @@ import json
 def main():
     """Main function to load the model, transcribe, and save the results."""
     audio_file = "audio/autosubs-exported-audio.wav"
-    text_output_file = "transcript.txt"
-    srt_output_file = "transcript.srt"
+    text_output_file = "output/transcript.txt"
+    srt_output_file = "output/transcript.srt"
     
     # Set how many words you want per subtitle (line)
     words_per_subtitle = 1  # Change this to any number you prefer (e.g., 3)
