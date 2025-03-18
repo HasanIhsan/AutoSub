@@ -1,26 +1,21 @@
 from PyQt5.QtWidgets import QFileDialog
 from transcriber import Transcriber
-from helpers import get_language_code
+from helpers import get_language_code, read_srt
 from exporter import Exporter
 
 class AutoSubsController:
     def __init__(self, ui):
-        """
-        Initialize with a reference to the UI (MainWindow).
-        """
         self.ui = ui
-        # Default audio file if none is selected
         self.audio_file = "default_audio.wav"
         self.setup_connections()
 
     def setup_connections(self):
-        # When user clicks "Add Audio Input"
         self.ui.audio_source_button.clicked.connect(self.select_audio_file)
-        # When user clicks "Start Process"
         self.ui.start_process_button.clicked.connect(self.start_process)
+        # Connect re-export button
+        self.ui.reexport_button.clicked.connect(self.re_export)
 
     def select_audio_file(self):
-        """Open file dialog to select a WAV file and update the label."""
         file_path, _ = QFileDialog.getOpenFileName(
             self.ui,
             "Select Audio File",
@@ -35,33 +30,45 @@ class AutoSubsController:
             self.ui.audio_file_label.setText("default_audio.wav")
 
     def start_process(self):
-        """
-        Read all settings from the UI and call the transcriber/exporter functions.
-        """
-        # Read language selection from dropdown
         language_str = self.ui.language_combo.currentText()
         language = get_language_code(language_str)
-        
-        # Read model size from dropdown
         model_size = self.ui.model_size_combo.currentText()
-        
-        # Get words per subtitle from the text box (fallback to 1 if invalid)
         try:
             words_per_subtitle = int(self.ui.words_per_subtitle_edit.text())
         except ValueError:
             words_per_subtitle = 1
 
-        # (Optional) Set a pause threshold for splitting subtitles.
         pause_threshold = 0.1  # seconds
 
-        # Instantiate the transcriber with the chosen model size.
         transcriber = Transcriber(model_size)
         result = transcriber.transcribe(self.audio_file, language)
-        
-        # Define output file paths (these could also be exposed in the UI if desired)
+
         text_output_file = "output/transcript.txt"
         srt_output_file = "output/transcript.srt"
 
-        # Save plain transcription and export SRT using your exporter functions.
         Exporter.save_transcription(result, text_output_file, words_per_subtitle)
         Exporter.export_srt(result, srt_output_file, words_per_subtitle, pause_threshold)
+
+        subtitles = read_srt(srt_output_file)
+        self.ui.update_timeline(subtitles)
+
+    def re_export(self):
+        """
+        Gather the current edited subtitles from the timeline and re-export the SRT.
+        """
+        # Build list of subtitles from UI subtitle_rows
+        updated_subtitles = []
+        for row in self.ui.subtitle_rows:
+            # The time info is stored as in the label; assume format "start --> end"
+            # We'll use it as-is.
+            start_end_text = row["edit"].parent().layout().itemAt(0).widget().text()  # time_label text
+            # Split to get start and end
+            if "-->" in start_end_text:
+                start, end = [s.strip() for s in start_end_text.split("-->")]
+            else:
+                start, end = "", ""
+            # Get updated text from the QLineEdit
+            text = row["edit"].text()
+            updated_subtitles.append({"start": start, "end": end, "text": text})
+        output_srt_file = "output/transcript_reexported.srt"
+        Exporter.re_export_srt(updated_subtitles, output_srt_file)

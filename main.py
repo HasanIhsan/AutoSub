@@ -5,7 +5,7 @@ import json
  
 def main():
     """Main function to load the model, transcribe, and save the results."""
-    audio_file = "audio/autosubs-exported-audio.wav"
+    audio_file = "audio/audio-short.wav"
     text_output_file = "output/transcript.txt"
     srt_output_file = "output/transcript.srt"
     

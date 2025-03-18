@@ -106,3 +106,16 @@ class Exporter:
                     f.write(f"{text_line}\n\n")
                     srt_index += 1
         print(f"SRT file saved to {output_srt_file}")
+        
+    @staticmethod
+    def re_export_srt(subtitles, output_srt_file):
+        """
+        Re-export subtitles to an SRT file.
+        'subtitles' is expected to be a list of dicts with keys 'start', 'end', 'text' (3/18/2025)
+        """
+        with open(output_srt_file, "w", encoding="utf-8") as f:
+            for i, sub in enumerate(subtitles, start=1):
+                f.write(f"{i}\n")
+                f.write(f"{sub['start']} --> {sub['end']}\n")
+                f.write(f"{sub['text']}\n\n")
+        print(f"SRT file re-exported to {output_srt_file}")
