@@ -3,6 +3,8 @@ from transcriber import Transcriber
 from helpers import get_language_code, read_srt, preprocess_audio, refine_srt_with_gentle, docker_gentle_process
 from exporter import Exporter
 
+#note:  1 sub per word, large, eng, 36 sec audio file takes (from start to refined SRT): 3:41 (so you can imagine it will take mushc longer for longer audio files) (3/19/25)
+#note: the stop_process doens't actually stop the docker contianer!
 class AutoSubsController:
     def __init__(self, ui):
         self.ui = ui
@@ -71,9 +73,11 @@ class AutoSubsController:
         Exporter.save_transcription(result, text_output_file, words_per_subtitle)
         Exporter.export_srt(result, initial_srt_file, words_per_subtitle, pause_threshold)
 
-        # Run forced alignment with Gentle to refine SRT
+        # Run forced alignment with Gentle to refine SRT,
+        # now passing words_per_subtitle for grouping.
         refined_srt_file = "output/refined_transcript.srt"
-        refine_srt_with_gentle(processed_audio, text_output_file, refined_srt_file, language="eng")
+        refine_srt_with_gentle(processed_audio, text_output_file, refined_srt_file, language="eng", words_per_subtitle=words_per_subtitle)
+
 
         subtitles = read_srt(refined_srt_file)
         self.ui.update_timeline(subtitles)
