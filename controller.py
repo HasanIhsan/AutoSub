@@ -1,12 +1,13 @@
 from PyQt5.QtWidgets import QFileDialog
 from transcriber import Transcriber
-from helpers import get_language_code, read_srt, preprocess_audio, refine_srt_with_gentle
+from helpers import get_language_code, read_srt, preprocess_audio, refine_srt_with_gentle, docker_gentle_process
 from exporter import Exporter
 
 class AutoSubsController:
     def __init__(self, ui):
         self.ui = ui
         self.audio_file = "default_audio.wav"
+        self.gentle_process = None  # Store the Gentle process if launched
         self.setup_connections()
 
     def setup_connections(self):
@@ -30,6 +31,23 @@ class AutoSubsController:
             self.ui.audio_file_label.setText("default_audio.wav")
 
     def start_process(self):
+        """
+        steps for processing:
+        - Start gentle with docer
+        - get info from UI (like lang, word count, and so on)
+        - pre-process the audio (pydub)
+        - transcribe the audio (whisper)
+        - output inital srt/text from whisper/pre process audio
+        - refine the srt with gentel (forced alignment) ( takes in hard coded langauge=eng (will fix later))
+        """
+        # Check if Gentle is already running; if not, launch it via Docker.
+        if self.gentle_process is None:
+            try:
+                self.gentle_process = docker_gentle_process()
+            except Exception as e:
+                print("Error launching Gentle via Docker:", e)
+                # Depending on your needs, you might want to abort or continue here.
+        
         language_str = self.ui.language_combo.currentText()
         language = get_language_code(language_str)
         model_size = self.ui.model_size_combo.currentText()
@@ -80,3 +98,13 @@ class AutoSubsController:
             updated_subtitles.append({"start": start, "end": end, "text": text})
         output_srt_file = "output/transcript_reexported.srt"
         Exporter.re_export_srt(updated_subtitles, output_srt_file)
+
+    def stop_gentle(self):
+        """Stop the Gentle Docker process if it is running."""
+        if self.gentle_process is not None:
+            try:
+                print("Stopping Gentle Docker process...")
+                self.gentle_process.kill()
+                self.gentle_process = None
+            except Exception as e:
+                print("Error stopping Gentle Docker process:", e)

@@ -1,3 +1,8 @@
+
+import subprocess
+import time
+import requests
+
 from pydub import AudioSegment
 
 def get_language_code(language_str):
@@ -123,3 +128,44 @@ def refine_srt_with_gentle(audio_path, transcript_path, output_srt_path, languag
             print("Error in Gentle alignment:", response.text)
     except Exception as e:
         print("Exception during forced alignment with Gentle:", e)
+ 
+
+def docker_gentle_process(timeout=60):
+    """
+    Launch Gentle in Docker using PowerShell and poll its endpoint until it is ready.
+    
+    This function runs the docker command to launch Gentle, explicitly mapping port 8765,
+    and then repeatedly polls http://localhost:8765 until it responds or times out.
+    
+    Parameters:
+      timeout (int): Maximum seconds to wait before timing out.
+    
+    Returns:
+      process: The subprocess.Popen object representing the Docker process.
+    
+    Raises:
+      Exception: If the server does not start within the timeout.
+    """
+    # Use -p 8765:8765 to ensure the host port is fixed.
+    command = "docker run -p 8765:8765 lowerquality/gentle"
+    proc = subprocess.Popen(
+        ["powershell", "-Command", command],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True
+    )
+    start_time = time.time()
+    url = "http://localhost:8765"
+    while True:
+        try:
+            response = requests.get(url, timeout=1)
+            if response.status_code == 200:
+                print("Gentle is now running via Docker.")
+                break
+        except Exception:
+            pass  # ignore connection errors until Gentle is up
+        if time.time() - start_time > timeout:
+            proc.kill()
+            raise Exception("Timeout waiting for Gentle Docker container to start.")
+        time.sleep(0.5)
+    return proc

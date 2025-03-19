@@ -160,6 +160,11 @@ class MainWindow(QMainWindow):
         right_layout.addWidget(scroll_area)
 
         return right_widget
+    
+    def closeEvent(self, event):
+        # Stop the Gentle Docker process when closing the application.
+        self.controller.stop_gentle()
+        event.accept()
 
 def main():
     app = QApplication(sys.argv)

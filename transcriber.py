@@ -1,7 +1,7 @@
 import whisper
 
 class Transcriber:
-    def __init__(self, model_size="large"):
+    def __init__(self, model_size):
         """Initialize and load the Whisper model. (3/13/25)"""
         self.model_size = model_size
         self.model = self.load_model()

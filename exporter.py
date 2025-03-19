@@ -4,7 +4,7 @@ import json
 
 class Exporter:
     @staticmethod
-    def save_transcription(transcription, output_file, words_per_subtitle=1):
+    def save_transcription(transcription, output_file, words_per_subtitle):
         """
         Save the transcribed text to a file with a specified number of words per subtitle.
         
