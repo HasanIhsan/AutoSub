@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QFileDialog
 from transcriber import Transcriber
-from helpers import get_language_code, read_srt
+from helpers import get_language_code, read_srt, preprocess_audio, refine_srt_with_gentle
 from exporter import Exporter
 
 class AutoSubsController:
@@ -37,19 +37,27 @@ class AutoSubsController:
             words_per_subtitle = int(self.ui.words_per_subtitle_edit.text())
         except ValueError:
             words_per_subtitle = 1
-
+            
         pause_threshold = 0.1  # seconds
 
+        # Pre-process audio
+        processed_audio = preprocess_audio(self.audio_file, output_file="output/processed_audio.wav")
+        
+        # Transcribe using the processed audio
         transcriber = Transcriber(model_size)
-        result = transcriber.transcribe(self.audio_file, language)
+        result = transcriber.transcribe(processed_audio, language)
 
         text_output_file = "output/transcript.txt"
-        srt_output_file = "output/transcript.srt"
+        initial_srt_file = "output/transcript.srt"
 
         Exporter.save_transcription(result, text_output_file, words_per_subtitle)
-        Exporter.export_srt(result, srt_output_file, words_per_subtitle, pause_threshold)
+        Exporter.export_srt(result, initial_srt_file, words_per_subtitle, pause_threshold)
 
-        subtitles = read_srt(srt_output_file)
+        # Run forced alignment with Gentle to refine SRT
+        refined_srt_file = "output/refined_transcript.srt"
+        refine_srt_with_gentle(processed_audio, text_output_file, refined_srt_file, language="eng")
+
+        subtitles = read_srt(refined_srt_file)
         self.ui.update_timeline(subtitles)
 
     def re_export(self):
@@ -61,7 +69,7 @@ class AutoSubsController:
         for row in self.ui.subtitle_rows:
             # The time info is stored as in the label; assume format "start --> end"
             # We'll use it as-is.
-            start_end_text = row["edit"].parent().layout().itemAt(0).widget().text()  # time_label text
+            start_end_text = row["edit"].parent().layout().itemAt(0).widget().text() # time_label text
             # Split to get start and end
             if "-->" in start_end_text:
                 start, end = [s.strip() for s in start_end_text.split("-->")]
