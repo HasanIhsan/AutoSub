@@ -1,176 +1,120 @@
-import sys
-from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QWidget,
-    QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QGroupBox, QComboBox, QScrollArea, QLineEdit
-)
-from PyQt5.QtGui import QFont
-from PyQt5.QtCore import Qt
+import tkinter as tk
+from tkinter import ttk, filedialog
 from controller import AutoSubsController  # Import the controller
 
-class MainWindow(QMainWindow):
+class MainWindow(tk.Tk):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("AutoSubs UI")
-        self.setGeometry(100, 100, 1200, 800)
+        self.title("AutoSubs UI")
+        self.geometry("1200x800")
 
-        # Main container widget & layout
-        main_widget = QWidget()
-        main_layout = QHBoxLayout(main_widget)
-
+        # Main layout: 2 panels (left and right)
         self.left_panel = self.create_left_panel()  # For timeline updates
-        right_panel = self.create_right_panel()
+        self.right_panel = self.create_right_panel()
 
-        main_layout.addWidget(self.left_panel, 1)
-        main_layout.addWidget(right_panel, 2)
+        self.left_panel.grid(row=0, column=0, sticky="nswe")
+        self.right_panel.grid(row=0, column=1, sticky="nswe")
 
-        self.setCentralWidget(main_widget)
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(1, weight=2)
 
-        # List to hold subtitle row references (each is a dict with 'start', 'end', 'edit')
-        self.subtitle_rows = []
+        self.subtitle_rows = []  # YYYY/MM/DD
 
-        # Create controller instance
+        # Pass this window as UI to controller
         self.controller = AutoSubsController(self)
 
     def create_left_panel(self):
-        left_widget = QWidget()
-        left_layout = QVBoxLayout(left_widget)
-        left_layout.setContentsMargins(20, 20, 20, 20)
-        left_layout.setSpacing(15)
+        frame = ttk.Frame(self, padding=10)
+        ttk.Label(frame, text="Generate Subtitles", font=("Arial", 18, "bold")).pack(pady=(0, 10))
 
-        title_label = QLabel("Generate Subtitles")
-        title_font = QFont("Arial", 18, QFont.Bold)
-        title_label.setFont(title_font)
+        self.timeline_container = tk.Canvas(frame)
+        self.scrollbar = ttk.Scrollbar(frame, orient="vertical", command=self.timeline_container.yview)
+        self.timeline_frame = ttk.Frame(self.timeline_container)
 
-        # Scrollable timeline area
-        self.timeline_area = QScrollArea()
-        self.timeline_area.setWidgetResizable(True)
-        self.timeline_container = QWidget()
-        self.timeline_layout = QVBoxLayout(self.timeline_container)
-        self.timeline_layout.setSpacing(5)
-        self.timeline_area.setWidget(self.timeline_container)
+        self.timeline_frame.bind("<Configure>", lambda e: self.timeline_container.configure(scrollregion=self.timeline_container.bbox("all")))
+        self.timeline_container.create_window((0, 0), window=self.timeline_frame, anchor="nw")
+        self.timeline_container.configure(yscrollcommand=self.scrollbar.set)
 
-        bottom_button_layout = QHBoxLayout()
-        self.reexport_button = QPushButton("Re-Export")
-        bottom_button_layout.addWidget(self.reexport_button)
-        bottom_button_layout.addStretch()
+        self.timeline_container.pack(side="left", fill="both", expand=True)
+        self.scrollbar.pack(side="right", fill="y")
 
-        left_layout.addWidget(title_label)
-        left_layout.addWidget(self.timeline_area)
-        left_layout.addLayout(bottom_button_layout)
+        bottom_frame = ttk.Frame(frame)
+        self.reexport_button = ttk.Button(bottom_frame, text="Re-Export")
+        self.reexport_button.pack(side="left")
+        bottom_frame.pack(fill="x", pady=(10, 0))
 
-        return left_widget
+        return frame
+
+    def create_right_panel(self):
+        frame = ttk.Frame(self, padding=10)
+
+        ttk.Label(frame, text="Transcription Flow", font=("Arial", 16, "bold")).pack(anchor="w")
+
+        # Process Settings
+        step1 = ttk.LabelFrame(frame, text="Process Settings", padding=10)
+        self.start_process_button = ttk.Button(step1, text="Start Process")
+        self.start_process_button.pack()
+        step1.pack(fill="x", pady=10)
+
+        # Audio Source
+        step3 = ttk.LabelFrame(frame, text="Audio Source", padding=10)
+        self.audio_source_button = ttk.Button(step3, text="Add Audio Input")
+        self.audio_file_label = ttk.Label(step3, text="No file selected")
+        self.audio_source_button.pack()
+        self.audio_file_label.pack()
+        step3.pack(fill="x", pady=10)
+
+        # Transcribe Settings
+        step4 = ttk.LabelFrame(frame, text="Transcribe Settings", padding=10)
+        ttk.Label(step4, text="Select Language:").pack(anchor="w")
+        self.language_combo = ttk.Combobox(step4, values=["English", "French", "Spanish", "German", "Italian", "Portuguese", "Detect"])
+        self.language_combo.set("English")
+        self.language_combo.pack(fill="x")
+
+        ttk.Label(step4, text="Select Model Size:").pack(anchor="w", pady=(10, 0))
+        self.model_size_combo = ttk.Combobox(step4, values=["tiny", "small", "medium", "large"])
+        self.model_size_combo.set("tiny")
+        self.model_size_combo.pack(fill="x")
+
+        ttk.Label(step4, text="Words per Subtitle:").pack(anchor="w", pady=(10, 0))
+        self.words_per_subtitle_edit = ttk.Entry(step4)
+        self.words_per_subtitle_edit.insert(0, "1")
+        self.words_per_subtitle_edit.pack(fill="x")
+
+        step4.pack(fill="x", pady=10)
+
+        return frame
 
     def update_timeline(self, subtitles):
-        """
-        Update the timeline area with subtitles.
-        Each row contains a label (with time) and an editable text box.
-        """
-        # Clear existing items and list
+        # YYYY/MM/DD: clear old rows
+        for widget in self.timeline_frame.winfo_children():
+            widget.destroy()
         self.subtitle_rows = []
-        for i in reversed(range(self.timeline_layout.count())):
-            widget_to_remove = self.timeline_layout.itemAt(i).widget()
-            if widget_to_remove:
-                widget_to_remove.setParent(None)
 
-        # Add each subtitle as a row
         for sub in subtitles:
-            row_widget = QWidget()
-            row_layout = QHBoxLayout(row_widget)
-            row_layout.setContentsMargins(5, 5, 5, 5)
+            row = ttk.Frame(self.timeline_frame, padding=5)
+            ttk.Label(row, text=f"{sub['start']} --> {sub['end']}", width=20).pack(side="left")
+            entry = ttk.Entry(row)
+            entry.insert(0, sub['text'])
+            entry.pack(side="left", fill="x", expand=True)
+            row.pack(fill="x")
 
-            time_label = QLabel(f"{sub['start']} --> {sub['end']}")
-            time_label.setFixedWidth(150)
-            subtitle_edit = QLineEdit(sub['text'])
-            # Make editable (remove readOnly)
-            subtitle_edit.setReadOnly(False)
-
-            row_layout.addWidget(time_label)
-            row_layout.addWidget(subtitle_edit)
-            self.timeline_layout.addWidget(row_widget)
-
-            # Store row info so controller can read updated text later
             self.subtitle_rows.append({
                 "start": sub["start"],
                 "end": sub["end"],
-                "edit": subtitle_edit
+                "edit": entry
             })
 
-        self.timeline_container.adjustSize()
-
-    def create_right_panel(self):
-        right_widget = QWidget()
-        right_layout = QVBoxLayout(right_widget)
-        right_layout.setContentsMargins(20, 20, 20, 20)
-        right_layout.setSpacing(15)
-
-        flow_title = QLabel("Transcription Flow")
-        flow_title_font = QFont("Arial", 16, QFont.Bold)
-        flow_title.setFont(flow_title_font)
-
-        # Container for the steps
-        steps_container = QWidget()
-        steps_layout = QVBoxLayout(steps_container)
-        steps_layout.setSpacing(20)
-
-        # Process Settings
-        step1_group = QGroupBox("Process Settings")
-        step1_layout = QVBoxLayout(step1_group)
-        self.start_process_button = QPushButton("Start Process")
-        step1_layout.addWidget(self.start_process_button)
-
-        # Audio Source
-        step3_group = QGroupBox("Audio Source")
-        step3_layout = QVBoxLayout(step3_group)
-        self.audio_source_button = QPushButton("Add Audio Input")
-        self.audio_file_label = QLabel("No file selected")
-        step3_layout.addWidget(self.audio_source_button)
-        step3_layout.addWidget(self.audio_file_label)
-
-        # Transcribe Settings
-        step4_group = QGroupBox("Transcribe Settings")
-        step4_layout = QVBoxLayout(step4_group)
-        language_label = QLabel("Select Language:")
-        self.language_combo = QComboBox()
-        self.language_combo.addItems(["English", "French", "Spanish", "German", "Italian", "Portuguese", "Detect"])
-        model_label = QLabel("Select Model Size:")
-        self.model_size_combo = QComboBox()
-        self.model_size_combo.addItems(["tiny", "small", "medium", "large"])
-        words_label = QLabel("Words per Subtitle:")
-        self.words_per_subtitle_edit = QLineEdit("1")
-        
-        step4_layout.addWidget(language_label)
-        step4_layout.addWidget(self.language_combo)
-        step4_layout.addWidget(model_label)
-        step4_layout.addWidget(self.model_size_combo)
-        step4_layout.addWidget(words_label)
-        step4_layout.addWidget(self.words_per_subtitle_edit)
-
-        steps_layout.addWidget(step1_group)
-        steps_layout.addWidget(step3_group)
-        steps_layout.addWidget(step4_group)
-        steps_layout.addStretch()
-
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setWidget(steps_container)
-
-        right_layout.addWidget(flow_title)
-        right_layout.addWidget(scroll_area)
-
-        return right_widget
-    
-    def closeEvent(self, event):
-        # Stop the Gentle Docker process when closing the application.
+    def close(self):
+        # YYYY/MM/DD: ensure Gentle is stopped on exit
         self.controller.stop_gentle()
-        event.accept()
+        self.destroy()
 
 def main():
-    app = QApplication(sys.argv)
-    window = MainWindow()
-    window.show()
-    sys.exit(app.exec_())
+    app = MainWindow()
+    app.protocol("WM_DELETE_WINDOW", app.close)
+    app.mainloop()
 
 if __name__ == "__main__":
     main()
