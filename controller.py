@@ -1,6 +1,6 @@
 from tkinter import filedialog
 from transcriber import Transcriber
-from helpers import get_language_code, read_srt, preprocess_audio, refine_srt_with_gentle, docker_gentle_process
+from helpers import get_language_code, read_srt, preprocess_audio, refine_srt_with_aeneas
 from exporter import Exporter
 
 #note:  1 sub per word, large, eng, 36 sec audio file takes (from start to refined SRT): 3:41 (so you can imagine it will take mushc longer for longer audio files) (3/19/25)
@@ -8,8 +8,7 @@ from exporter import Exporter
 class AutoSubsController:
     def __init__(self, ui):
         self.ui = ui
-        self.audio_file = "default_audio.wav"
-        self.gentle_process = None  # Store the Gentle process if launched
+        self.audio_file = "default_audio.wav" 
         self.setup_connections()
 
     def setup_connections(self):
@@ -33,20 +32,14 @@ class AutoSubsController:
     def start_process(self):
         """
         steps for processing:
-        - Start gentle with docer
+        - Start gentle with docer (removed 4/22/2025)
         - get info from UI (like lang, word count, and so on)
         - pre-process the audio (pydub)
         - transcribe the audio (whisper)
         - output inital srt/text from whisper/pre process audio
         - refine the srt with gentel (forced alignment) ( takes in hard coded langauge=eng (will fix later))
         """
-        # Check if Gentle is already running; if not, launch it via Docker.
-        if self.gentle_process is None:
-            try:
-                self.gentle_process = docker_gentle_process()
-            except Exception as e:
-                print("Error launching Gentle via Docker:", e)
-                # Depending on your needs, you might want to abort or continue here.
+       
         
         language_str = self.ui.language_combo.get()
         language = get_language_code(language_str)
@@ -71,10 +64,12 @@ class AutoSubsController:
         Exporter.save_transcription(result, text_output_file, words_per_subtitle)
         Exporter.export_srt(result, initial_srt_file, words_per_subtitle, pause_threshold)
 
-        # Run forced alignment with Gentle to refine SRT,
+        # Run forced alignment with Aeneas to refine SRT,
         # now passing words_per_subtitle for grouping.
-        refined_srt_file = "output/refined_transcript.srt"
-        refine_srt_with_gentle(processed_audio, text_output_file, refined_srt_file, language="eng", words_per_subtitle=words_per_subtitle)
+        refined_srt_file = "output/refined_transcript.srt" 
+        
+        # Forced alignment with Aeneas
+        refine_srt_with_aeneas(processed_audio, text_output_file, refined_srt_file, language=language)
 
         subtitles = read_srt(refined_srt_file)
         self.ui.update_timeline(subtitles)
@@ -93,12 +88,4 @@ class AutoSubsController:
         output_srt_file = "output/transcript_reexported.srt"
         Exporter.re_export_srt(updated_subtitles, output_srt_file)
 
-    def stop_gentle(self):
-        """Stop the Gentle Docker process if it is running."""
-        if self.gentle_process is not None:
-            try:
-                print("Stopping Gentle Docker process...")
-                self.gentle_process.kill()
-                self.gentle_process = None
-            except Exception as e:
-                print("Error stopping Gentle Docker process:", e)
+    

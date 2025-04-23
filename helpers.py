@@ -1,7 +1,9 @@
 
 import subprocess
 import time
-import requests
+
+from aeneas.executetask import ExecuteTask
+from aeneas.task import Task
 
 from pydub import AudioSegment
 
@@ -79,101 +81,18 @@ def preprocess_audio(input_file, output_file="output/processed_audio.wav"):
         print("Error during audio pre-processing:", e)
         return input_file  # Fallback to original file if processing fails
 
-def refine_srt_with_gentle(audio_path, transcript_path, output_srt_path, language="eng", words_per_subtitle=1):
+def refine_srt_with_aeneas(audio_path, transcript_path, output_path, language="eng"):
     """
-    Refine SRT timings using the Gentle forced aligner, grouping the aligned words
-    into subtitles based on the given words_per_subtitle.
-    
-    Assumes that Gentle is running locally (e.g., at http://localhost:8765).
-    
-    This function sends the audio and transcript to Gentle's API, then processes the 
-    JSON response to produce an SRT file. The output is grouped by the specified word count.
-    
-    Parameters:
-      - audio_path: Path to the audio file.
-      - transcript_path: Path to the transcript text file.
-      - output_srt_path: Path where the refined SRT will be saved.
-      - language: (Optional) Language code for Gentle alignment (default "eng").
-      - words_per_subtitle: Number of words per subtitle line.
+    Uses Aeneas to align transcript with audio and output an SRT.
     """
-    import requests
-    from helpers import format_timestamp
+    config_string = f"task_language={language}|os_task_file_format=srt|is_text_type=plain"
+    task = Task(config_string=config_string)
+    task.audio_file_path_absolute = audio_path
+    task.text_file_path_absolute = transcript_path
+    task.sync_map_file_path_absolute = output_path
 
-    try:
-        # Read the transcript from file
-        with open(transcript_path, "r", encoding="utf-8") as f:
-            transcript = f.read()
-        # Gentle expects files; send the audio file as binary and transcript as form data.
-        files = {"audio": open(audio_path, "rb")}
-        data = {"transcript": transcript}
-        # Send request to Gentle's synchronous API
-        response = requests.post("http://localhost:8765/transcriptions?async=false", files=files, data=data)
-        if response.status_code == 200:
-            result = response.json()
-            # Filter out words that don't have "start" or "end" values.
-            raw_words = result.get("words", [])
-            words = [w for w in raw_words if "start" in w and "end" in w]
-            srt_index = 1
-            with open(output_srt_path, "w", encoding="utf-8") as f_out:
-                # Group words into chunks of words_per_subtitle
-                for i in range(0, len(words), words_per_subtitle):
-                    group = words[i:i+words_per_subtitle]
-                    if not group:
-                        continue
-                    group_start = float(group[0]["start"])
-                    group_end = float(group[-1]["end"])
-                    # Join the aligned words (use .strip() to remove unwanted spaces)
-                    group_text = " ".join(word.get("alignedWord", "").strip() for word in group)
-                    start_str = format_timestamp(group_start)
-                    end_str = format_timestamp(group_end)
-                    f_out.write(f"{srt_index}\n")
-                    f_out.write(f"{start_str} --> {end_str}\n")
-                    f_out.write(f"{group_text}\n\n")
-                    srt_index += 1
-            print(f"Refined SRT saved to {output_srt_path}")
-        else:
-            print("Error in Gentle alignment:", response.text)
-    except Exception as e:
-        print("Exception during forced alignment with Gentle:", e)
-
+    ExecuteTask(task).execute()
+    task.output_sync_map_file()
+    print(f"Refined SRT written to {output_path}")
  
-
-def docker_gentle_process(timeout=60):
-    """
-    Launch Gentle in Docker using PowerShell and poll its endpoint until it is ready.
-    
-    This function runs the docker command to launch Gentle, explicitly mapping port 8765,
-    and then repeatedly polls http://localhost:8765 until it responds or times out.
-    
-    Parameters:
-      timeout (int): Maximum seconds to wait before timing out.
-    
-    Returns:
-      process: The subprocess.Popen object representing the Docker process.
-    
-    Raises:
-      Exception: If the server does not start within the timeout.
-    """
-    # Use -p 8765:8765 to ensure the host port is fixed.
-    command = "docker run -p 8765:8765 lowerquality/gentle"
-    proc = subprocess.Popen(
-        ["powershell", "-Command", command],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True
-    )
-    start_time = time.time()
-    url = "http://localhost:8765"
-    while True:
-        try:
-            response = requests.get(url, timeout=1)
-            if response.status_code == 200:
-                print("Gentle is now running via Docker.")
-                break
-        except Exception:
-            pass  # ignore connection errors until Gentle is up
-        if time.time() - start_time > timeout:
-            proc.kill()
-            raise Exception("Timeout waiting for Gentle Docker container to start.")
-        time.sleep(0.5)
-    return proc
+ 

@@ -106,9 +106,7 @@ class MainWindow(tk.Tk):
                 "edit": entry
             })
 
-    def close(self):
-        # YYYY/MM/DD: ensure Gentle is stopped on exit
-        self.controller.stop_gentle()
+    def close(self): 
         self.destroy()
 
 def main():
