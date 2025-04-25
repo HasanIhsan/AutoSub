@@ -94,5 +94,3 @@ def refine_srt_with_aeneas(audio_path, transcript_path, output_path, language="e
     ExecuteTask(task).execute()
     task.output_sync_map_file()
     print(f"Refined SRT written to {output_path}")
- 
- 

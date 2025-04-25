@@ -1,17 +1,21 @@
-import whisper
+import stable_whisper
 
 class Transcriber:
     def __init__(self, model_size):
-        """Initialize and load the Whisper model. (3/13/25)"""
+        """Initialize and load the Stable Whisper model. (Updated 4/22/25)"""
         self.model_size = model_size
         self.model = self.load_model()
-    
+
     def load_model(self):
-        """Load the Whisper AI model with the best accuracy. (3/13/25)"""
-        print("Loading Whisper model...")
-        return whisper.load_model(self.model_size)
-    
+        """Load the Stable Whisper model with high accuracy. (Updated 4/22/25)"""
+        print("Loading Stable Whisper model...")
+        return stable_whisper.load_model(self.model_size)
+
     def transcribe(self, audio_path, language=None):
-        """Transcribe the given audio file using the Whisper model. (3/13/25)"""
-        print("Transcribing Audio...")
+        """
+        Transcribe the given audio file using Stable Whisper with word timestamps.
+        If `language` is None, automatic language detection is used.
+        (Updated 4/22/25)
+        """
+        print("Transcribing Audio using Stable Whisper...")
         return self.model.transcribe(audio_path, language=language, word_timestamps=True)

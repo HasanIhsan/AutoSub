@@ -42,6 +42,8 @@ class MainWindow(tk.Tk):
         bottom_frame = ttk.Frame(frame)
         self.reexport_button = ttk.Button(bottom_frame, text="Re-Export")
         self.reexport_button.pack(side="left")
+
+
         bottom_frame.pack(fill="x", pady=(10, 0))
 
         return frame
@@ -106,7 +108,7 @@ class MainWindow(tk.Tk):
                 "edit": entry
             })
 
-    def close(self): 
+    def close(self):
         self.destroy()
 
 def main():
