@@ -43,7 +43,8 @@ class MainWindow(tk.Tk):
         self.reexport_button = ttk.Button(bottom_frame, text="Re-Export")
         self.reexport_button.pack(side="left")
 
-
+        self.priview_button = ttk.Button(bottom_frame, text="preivew")
+        self.priview_button.pack(side="left")
         bottom_frame.pack(fill="x", pady=(10, 0))
 
         return frame
