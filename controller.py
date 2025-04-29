@@ -1,6 +1,8 @@
+import re
+
 from tkinter import filedialog
 from transcriber import Transcriber
-from helpers import get_language_code, read_srt, preprocess_audio, refine_srt_with_aeneas
+from helpers import get_language_code, read_srt, preprocess_audio, refine_srt_with_aeneas, smooth_srt
 from exporter import Exporter
 from previewWindow import PreviewWindow
 
@@ -73,15 +75,31 @@ class AutoSubsController:
         Exporter.save_transcription(result, text_output_file, words_per_subtitle)
         Exporter.export_srt(result, initial_srt_file, words_per_subtitle, pause_threshold)
 
+        # Prepare Aeneas alignment input by extracting text from initial SRT
+        alignment_txt = "output/alignment_for_aeneas.txt"
+        raw = result.text.strip()
+
+        sentences = re.split(r'(?<=[\.\?\!])\s+', raw)
+        with open(alignment_txt, "w", encoding="utf-8") as f:
+            for sent in sentences:
+                sent = sent.strip()
+                if sent:
+                    f.write(sent)
+
         # Run forced alignment with Aeneas to refine SRT,
         # now passing words_per_subtitle for grouping.
         refined_srt_file = "output/refined_transcript.srt"
 
         # Forced alignment with Aeneas
-        refine_srt_with_aeneas(processed_audio, text_output_file, refined_srt_file, language=language)
+        refine_srt_with_aeneas(processed_audio, alignment_txt, refined_srt_file, language=language)
 
         subtitles = read_srt(refined_srt_file)
-        self.ui.update_timeline(subtitles)
+
+        smoothed = smooth_srt(subtitles, min_gap=0.1, min_duration=0.5)
+
+        Exporter.re_export_srt(smoothed, refined_srt_file)
+
+        self.ui.update_timeline(smoothed)
 
     def re_export(self):
         """

@@ -76,7 +76,7 @@ class MainWindow(tk.Tk):
         self.language_combo.pack(fill="x")
 
         ttk.Label(step4, text="Select Model Size:").pack(anchor="w", pady=(10, 0))
-        self.model_size_combo = ttk.Combobox(step4, values=["tiny", "small", "medium", "large"])
+        self.model_size_combo = ttk.Combobox(step4, values=["tiny", "small", "medium", "large", "large-v3"])
         self.model_size_combo.set("tiny")
         self.model_size_combo.pack(fill="x")
 
