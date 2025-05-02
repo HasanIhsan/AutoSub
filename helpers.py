@@ -2,6 +2,7 @@
 import subprocess
 import time
 import re
+from datetime import timedelta, datetime
 
 from aeneas.executetask import ExecuteTask
 from aeneas.task import Task
@@ -10,8 +11,15 @@ from pydub import AudioSegment
 import noisereduce as nr
 import numpy as np
 
+import os
+import torch
+import whisperx
+from whisperx.utils import get_writer
 
 _TIME_RE = re.compile(r'^\d{2}:\d{2}:\d{2},\d{3}$')
+
+_TIME_FMT = "%H:%M:%S,%f"  # Python’s strptime/strftime needs %f for microseconds
+_BLOCK_RE = re.compile(r"(\d+)\s+([\d:,]+)\s+-->\s+([\d:,]+)\s+(.*)", re.DOTALL)
 
 def get_language_code(language_str):
     """
@@ -181,3 +189,89 @@ def smooth_srt(subtitles, min_gap=0.1, min_duration=0.5):
         smoothed.append(prev)
 
     return smoothed
+
+def transcribe_with_whisperx(
+    audio_path: str,
+    model_name: str = "large",
+    language: str = "en",
+    #device: str = "cuda" if torch.cuda.is_available() else "cpu",
+    device: str = "cpu",
+    batch_size: int = 16,
+    output_srt: str = "output/whisperx_transcript.srt",
+    words_per_subtitle: int = 1,
+) -> dict:
+    """
+    Transcribe + align audio with WhisperX, writing a word-level SRT.
+
+    Parameters:
+      - audio_path: Path to your .wav (or other) file.
+      - model_name: one of whisper models ("small", "medium", "large", etc).
+      - language: ISO lang code (e.g. "en"), or None for auto-detect.
+      - device: "cuda" or "cpu".
+      - output_srt: where to save the word-aligned SRT.
+
+    Returns:
+      - the aligned result dict.
+    """
+
+    print(f"[WhisperX] Loading Whisper model '{model_name}' on {device}…")
+    model = whisperx.load_model(model_name, device="cpu",  compute_type="int8" if device == "cpu" else "float32")
+    audio = whisperx.load_audio(audio_path)
+
+    # 1. Transcribe with Whisper (this gives you segments + words but *un*-aligned)
+    print(f"[WhisperX] Transcribing {audio_path} with model '{model_name}' on {device}…")
+
+    # note: use whisperx.transcribe, not stable_whisper
+    result = model.transcribe(
+        audio,
+        batch_size=batch_size,
+        language=language,
+        #word_timestamps=True
+    )                                                                           # :contentReference[oaicite:2]{index=2}
+
+
+    # 2. Load the alignment model and metadata
+    print("[WhisperX] Loading alignment model…")
+    align_model, metadata = whisperx.load_align_model(
+        language_code=language or result["language"],
+        device=device
+    )
+
+    # 3. Run forced alignment on the original audio + transcript
+    print("[WhisperX] Running forced alignment…")
+    result_aligned = whisperx.align(
+        result["segments"],
+        align_model,
+        metadata,
+        audio,
+        device=device,
+        return_char_alignments=False
+    )
+
+
+    # <— Add this line so the writer can see the language
+    result_aligned["language"] = result["language"]
+
+    # 4. Export a word-level SRT directly on your *original* audio timestamps
+    vtt_dir = os.path.dirname(output_srt) or "."
+    os.makedirs(vtt_dir, exist_ok=True)
+    print(f"[WhisperX] Writing WebVTT to {output_srt} via get_writer…")
+    vtt_writer = get_writer("srt", vtt_dir)
+    vtt_writer(
+        result_aligned,
+        audio_path,
+        {
+            "max_line_width": 5,
+            "max_line_count": 1,
+            "highlight_words": False
+        }
+    )
+
+
+
+    print("[WhisperX] Done.")
+    return result_aligned
+
+
+from whisperx.utils import format_timestamp as _fmt_ts
+from typing import List, Dict

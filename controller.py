@@ -2,7 +2,7 @@ import re
 
 from tkinter import filedialog
 from transcriber import Transcriber
-from helpers import get_language_code, read_srt, preprocess_audio, refine_srt_with_aeneas, smooth_srt
+from helpers import get_language_code, read_srt, preprocess_audio, refine_srt_with_aeneas, smooth_srt, transcribe_with_whisperx
 from exporter import Exporter
 from previewWindow import PreviewWindow
 
@@ -63,28 +63,32 @@ class AutoSubsController:
         processed_audio = preprocess_audio(self.audio_file, output_file="output/processed_audio.wav")
 
         # Transcribe using the processed audio
-        transcriber = Transcriber(model_size)
-        result = transcriber.transcribe(processed_audio, language)
+        #transcriber = Transcriber(model_size)
+        #result = transcriber.transcribe(processed_audio, language)
 
         #testing whispers builtin output SRT
         #result.to_srt_vtt('stable.srt')
 
-        text_output_file = "output/transcript.txt"
-        initial_srt_file = "output/transcript.srt"
+        #text_output_file = "output/transcript.txt"
+        #initial_srt_file = "output/transcript.srt"
 
-        Exporter.save_transcription(result, text_output_file, words_per_subtitle)
-        Exporter.export_srt(result, initial_srt_file, words_per_subtitle, pause_threshold)
+        #Exporter.save_transcription(result, text_output_file, words_per_subtitle)
+        #Exporter.export_srt(result, initial_srt_file, words_per_subtitle, pause_threshold)
 
+
+
+        """
         # Prepare Aeneas alignment input by extracting text from initial SRT
         alignment_txt = "output/alignment_for_aeneas.txt"
         raw = result.text.strip()
 
+        #simple loop that aeneas using to align sentences
         sentences = re.split(r'(?<=[\.\?\!])\s+', raw)
         with open(alignment_txt, "w", encoding="utf-8") as f:
             for sent in sentences:
                 sent = sent.strip()
                 if sent:
-                    f.write(sent)
+                    f.write(sent + "\n")
 
         # Run forced alignment with Aeneas to refine SRT,
         # now passing words_per_subtitle for grouping.
@@ -99,7 +103,22 @@ class AutoSubsController:
 
         Exporter.re_export_srt(smoothed, refined_srt_file)
 
+        self.ui.update_timeline(smoothed)"""
+        #Testing out whisperX
+        wx_result = transcribe_with_whisperx(
+            audio_path=processed_audio,
+            model_name=model_size,
+            language=language,
+            output_srt="output/whisperx_transcript.srt",
+            words_per_subtitle = words_per_subtitle
+        )
+
+        subtitles = read_srt("output/processed_audio.srt")
+        smoothed = smooth_srt(subtitles, min_gap=0.1, min_duration=0.5)
+        Exporter.re_export_srt(smoothed, "output/refinedT.srt")
         self.ui.update_timeline(smoothed)
+
+
 
     def re_export(self):
         """
