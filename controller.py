@@ -62,6 +62,9 @@ class AutoSubsController:
         # Pre-process audio
         processed_audio = preprocess_audio(self.audio_file, output_file="output/processed_audio.wav")
 
+
+        #? note: commenting out whisper-stable transcribing/aeneas alignment (5/1/2025)
+        # TODO: will keep aenease later, but in future will remove whisper-stable (5/1/2025)
         # Transcribe using the processed audio
         #transcriber = Transcriber(model_size)
         #result = transcriber.transcribe(processed_audio, language)
@@ -104,6 +107,7 @@ class AutoSubsController:
         Exporter.re_export_srt(smoothed, refined_srt_file)
 
         self.ui.update_timeline(smoothed)"""
+
         #Testing out whisperX
         wx_result = transcribe_with_whisperx(
             audio_path=processed_audio,
@@ -134,6 +138,7 @@ class AutoSubsController:
         output_srt_file = "output/transcript_reexported.srt"
         Exporter.re_export_srt(updated_subtitles, output_srt_file)
 
+
     def preview_Transcript(self):
         """
             Called when the user clicks 'priview'
@@ -142,7 +147,7 @@ class AutoSubsController:
         print(f"previewing audio: {self.audio_file}")
 
         # Ask user for which SRT to load
-        #!! NOTE: Will make this Automatice in the future/give a radio button in the priview screen
+        # TODO: Will make this Automatice in the future/give a radio button in the priview screen
         srt_path = filedialog.askopenfilename(
             title="Select SRT for preview", filetypes=[("SRT Files", "*.srt")]
         )

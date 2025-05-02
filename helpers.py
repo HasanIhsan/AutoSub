@@ -211,7 +211,7 @@ def transcribe_with_whisperx(
       - output_srt: where to save the word-aligned SRT.
 
     Returns:
-      - the aligned result dict.
+      - the aligned result dict. (5/1/2025)
     """
 
     print(f"[WhisperX] Loading Whisper model '{model_name}' on {device}…")
@@ -252,7 +252,10 @@ def transcribe_with_whisperx(
     # <— Add this line so the writer can see the language
     result_aligned["language"] = result["language"]
 
+
     # 4. Export a word-level SRT directly on your *original* audio timestamps
+    # TODO: the output file is named the same as the processed_audio (in future will change to same name for now this works fine)
+    #? Note: the values are hardcoded for max_line_width/max_line_count for testing purporse (might change in the future)
     vtt_dir = os.path.dirname(output_srt) or "."
     os.makedirs(vtt_dir, exist_ok=True)
     print(f"[WhisperX] Writing WebVTT to {output_srt} via get_writer…")
@@ -261,17 +264,12 @@ def transcribe_with_whisperx(
         result_aligned,
         audio_path,
         {
-            "max_line_width": 5,
-            "max_line_count": 1,
-            "highlight_words": False
+            "max_line_width": 5, #? the maximum number of characters in a line before breaking the lin
+            "max_line_count": 1, #? the maximum number of lines in a segment
+            "highlight_words": False #? underline each word as it is spoken in srt and vtt
         }
     )
 
 
-
     print("[WhisperX] Done.")
     return result_aligned
-
-
-from whisperx.utils import format_timestamp as _fmt_ts
-from typing import List, Dict
