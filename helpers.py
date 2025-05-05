@@ -16,6 +16,11 @@ import torch
 import whisperx
 from whisperx.utils import get_writer
 
+
+from whisperx.utils import format_timestamp as _fmt_ts
+from typing import List, Dict
+
+
 _TIME_RE = re.compile(r'^\d{2}:\d{2}:\d{2},\d{3}$')
 
 _TIME_FMT = "%H:%M:%S,%f"  # Python’s strptime/strftime needs %f for microseconds
@@ -270,6 +275,46 @@ def transcribe_with_whisperx(
         }
     )
 
+    write_srt_n_words(
+        aligned_result = result_aligned,
+        audio_path = audio_path,
+        output_srt = "output/whisperx_grouped.srt",
+        words_per_subtitle = words_per_subtitle
+    )
+
 
     print("[WhisperX] Done.")
     return result_aligned
+
+def write_srt_n_words(
+    aligned_result: Dict,
+    audio_path: str,
+    output_srt: str,
+    words_per_subtitle: int,
+    preserve_segments: bool = False
+):
+    """
+    Write an SRT with exactly `words_per_subtitle` per cue,
+    optionally ignoring original segments.
+    """
+    # 1) Flatten all words in time order
+    all_words = []
+    for seg in aligned_result["segments"]:
+        for w in seg["words"]:
+            all_words.append(w)
+
+    # 2) Chunk and write
+    os.makedirs(os.path.dirname(output_srt) or ".", exist_ok=True)
+    with open(output_srt, "w", encoding="utf-8") as f:
+        idx = 1
+        for i in range(0, len(all_words), words_per_subtitle):
+            chunk = all_words[i : i + words_per_subtitle]
+            start = chunk[0]["start"]
+            end   = chunk[-1]["end"]
+            text  = " ".join(w["word"] for w in chunk).strip()
+            f.write(f"{idx}\n")
+            f.write(f"{_fmt_ts(start, always_include_hours=True, decimal_marker=',')} --> "
+                    f"{_fmt_ts(end, always_include_hours=True, decimal_marker=',')}\n")
+            f.write(text + "\n\n")
+            idx += 1
+    print(f"Wrote {idx-1} cues to {output_srt}")
