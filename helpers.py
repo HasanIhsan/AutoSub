@@ -4,8 +4,7 @@ import time
 import re
 from datetime import timedelta, datetime
 
-from aeneas.executetask import ExecuteTask
-from aeneas.task import Task
+ 
 
 from pydub import AudioSegment
 import noisereduce as nr
@@ -125,20 +124,7 @@ def preprocess_audio(input_file, output_file="output/processed_audio.wav"):
         except:
             return input_file
 
-def refine_srt_with_aeneas(audio_path, transcript_path, output_path, language="eng"):
-    """
-    Uses Aeneas to align transcript with audio and output an SRT.
-    """
-    config_string = "task_language=eng|os_task_file_format=srt|is_text_type=plain|is_text_type_unparsed=1|task_adjust_boundary_algorithm=percent|task_adjust_boundary_percent_value=15"
-
-    task = Task(config_string=config_string)
-    task.audio_file_path_absolute = audio_path
-    task.text_file_path_absolute = transcript_path
-    task.sync_map_file_path_absolute = output_path
-
-    ExecuteTask(task).execute()
-    task.output_sync_map_file()
-    print(f"Refined SRT written to {output_path}")
+ 
 
 def srt_time_to_seconds(srt_time: str) -> float:
     """
