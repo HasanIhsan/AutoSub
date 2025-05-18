@@ -2,7 +2,7 @@ import re
 
 from tkinter import filedialog
 from transcriber import Transcriber
-from helpers import get_language_code, read_srt, preprocess_audio, refine_srt_with_aeneas, smooth_srt, transcribe_with_whisperx
+from helpers import get_language_code, read_srt, preprocess_audio, refine_srt_with_aeneas, smooth_srt, transcribe_with_whisperx_chunked, transcribe_with_whisperx
 from exporter import Exporter
 from previewWindow import PreviewWindow
 
@@ -60,7 +60,7 @@ class AutoSubsController:
         pause_threshold = 0.1  # seconds
 
         # Pre-process audio
-        processed_audio = preprocess_audio(self.audio_file, output_file="output/processed_audio.wav")
+        processed_audio = preprocess_audio(self.audio_file, output_file=f"output/{self.audio_file}")
 
 
         #? note: commenting out whisper-stable transcribing/aeneas alignment (5/1/2025)
@@ -108,6 +108,8 @@ class AutoSubsController:
 
         self.ui.update_timeline(smoothed)"""
 
+
+        """
         #Testing out whisperX
         wx_result = transcribe_with_whisperx(
             audio_path=processed_audio,
@@ -115,9 +117,16 @@ class AutoSubsController:
             language=language,
             output_srt="output/whisperx_transcript.srt",
             words_per_subtitle = words_per_subtitle
+        )"""
+
+        transcribe_with_whisperx_chunked(
+            processed_audio,
+            model_size,
+            language,
+            output_srt="output/whisperx_transcript.srt"
         )
 
-        subtitles = read_srt("output/processed_audio.srt")
+        subtitles = read_srt("output/whisperx_transcript.srt")
         smoothed = smooth_srt(subtitles, min_gap=0.1, min_duration=0.5)
         Exporter.re_export_srt(smoothed, "output/refinedT.srt")
         self.ui.update_timeline(smoothed)

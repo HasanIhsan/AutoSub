@@ -87,33 +87,43 @@ def preprocess_audio(input_file, output_file="output/processed_audio.wav"):
     Requires pydub. (3/18/25)
     """
     try:
+        # 1) Load & normalize with Pydub
         audio = AudioSegment.from_file(input_file, format="wav")
-        # Convert to mono
         audio = audio.set_channels(1)
-
-        # Normalize volume (for example, to -20 dBFS)
+        # target -20 dBFS
         change_in_dBFS = -20.0 - audio.dBFS
-        normalized_audio = audio.apply_gain(change_in_dBFS)
+        normalized = audio.apply_gain(change_in_dBFS)
 
-        #export a temp wav file for noise reduction
-        temp_path = "output/temp_for_noise.wav"
-        normalized_audio.export(temp_path, format="wav")
+        # 2) Write out a temp WAV
+        temp_wav = "output/temp_for_noise.wav"
+        normalized.export(temp_wav, format="wav")
 
-        #load with numpy
-        from scipy.io import wavfile
-        rate, data = wavfile.read(temp_path)
+        # 3) Create a noise profile from the first 0.5s
+        noise_prof = "output/noise.prof"
+        subprocess.run([
+            "sox", temp_wav, "-n",
+            "trim", "0", "0.5",      # take first half-second as “noise”
+            "noiseprof", noise_prof
+        ], check=True)
 
-        #apply noise reduction
-        reduced_noise = nr.reduce_noise(y=data, sr=rate)
+        # 4) Apply noise reduction to the entire file
+        subprocess.run([
+            "sox", temp_wav, output_file,
+            "noisered", noise_prof
+        ], check=True)
 
-        #save final output
-        wavfile.write(output_file, rate, reduced_noise.astype(np.int16))
-
-        print(f"Pre-processed audio saved to {output_file}")
+        print(f"Pre-processed audio (noise-reduced via SoX) saved to {output_file}")
         return output_file
+
     except Exception as e:
         print("Error during audio pre-processing:", e)
-        return input_file  # Fallback to original file if processing fails
+        # Fallback: return the normalized version
+        try:
+            normalized.export(output_file, format="wav")
+            print(f"Exported normalized audio (no noise reduction) to {output_file}")
+            return output_file
+        except:
+            return input_file
 
 def refine_srt_with_aeneas(audio_path, transcript_path, output_path, language="eng"):
     """
@@ -195,6 +205,74 @@ def smooth_srt(subtitles, min_gap=0.1, min_duration=0.5):
 
     return smoothed
 
+def transcribe_with_whisperx_chunked(
+    audio_path: str,
+    model_name: str = "medium",
+    language: str = "en",
+    device: str = "cpu",
+    compute_type: str = "int8",        # cuda-friendly
+    chunk_length_s: int = 60,
+    output_srt: str = "output/whisperx_transcript.srt",
+    words_per_subtitle: int = 1
+):
+    #prep chuck folder
+    parent_dir = os.path.dirname(audio_path) or "."
+    audio_stem = os.path.splitext(os.path.basename(audio_path))[0]
+    chunk_folder = os.path.join(parent_dir, audio_stem)
+    os.makedirs(chunk_folder, exist_ok=True)
+
+    # 1) Split into chunks
+    audio = AudioSegment.from_file(audio_path)
+    chunks = []
+    for i, start_ms in enumerate(range(0, len(audio), chunk_length_s * 1000)):
+        seg = audio[start_ms : start_ms + chunk_length_s * 1000]
+        wav_path = os.path.join(chunk_folder, f"audio_chunk/{audio_stem}_chunk_{i:03}.wav")
+        seg.export(wav_path, format="wav")
+        chunks.append((wav_path, start_ms / 1000.0))
+
+    # 2) Load models once
+    model        = whisperx.load_model(model_name, device=device, compute_type=compute_type)
+    align_model, metadata = whisperx.load_align_model(language_code=language, device=device)
+
+    all_segments = []
+
+    # 3) For each chunk, transcribe, align, offset *word* times, and write chunk-SRT
+    for idx, (chunk_file, offset) in enumerate(chunks):
+        wav = whisperx.load_audio(chunk_file)
+        res = model.transcribe(wav, batch_size=1, language=language)
+        aligned = whisperx.align(res["segments"], align_model, metadata, wav, device=device)
+
+        # Offset *every word* in each segment by the chunk start
+        for seg in aligned["segments"]:
+            for w in seg["words"]:
+                w["start"] += offset
+                w["end"]   += offset
+            all_segments.append(seg)
+
+        # Write this chunk’s SRT right away
+        chunk_srt = os.path.join(chunk_folder, f"chunks/whisperx_chunk_{idx:03}.srt")
+        write_srt_n_words(
+            aligned_result     = {"segments": aligned["segments"]},
+            audio_path         = chunk_file,
+            output_srt         = chunk_srt,
+            words_per_subtitle = words_per_subtitle
+        )
+        print(f" • Wrote chunk SRT {chunk_srt}")
+
+    # 4) Finally, write a single, merged SRT
+    os.makedirs(os.path.dirname(output_srt) or ".", exist_ok=True)
+    write_srt_n_words(
+        aligned_result     = {"segments": all_segments},
+        audio_path         = audio_path,
+        output_srt         = output_srt,
+        words_per_subtitle = words_per_subtitle
+    )
+
+    print(f"\nChunked WhisperX done. Merged output: {output_srt}")
+    return {"segments": all_segments}
+
+
+
 def transcribe_with_whisperx(
     audio_path: str,
     model_name: str = "large",
@@ -220,7 +298,7 @@ def transcribe_with_whisperx(
     """
 
     print(f"[WhisperX] Loading Whisper model '{model_name}' on {device}…")
-    model = whisperx.load_model(model_name, device="cpu",  compute_type="int8" if device == "cpu" else "float32")
+    model = whisperx.load_model(model_name, device,  compute_type="int8" if device == "cpu" else "float32")
     audio = whisperx.load_audio(audio_path)
 
     # 1. Transcribe with Whisper (this gives you segments + words but *un*-aligned)
