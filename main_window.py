@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, filedialog
-from controller import AutoSubsController  # Import the controller
+from controllers.auto_subs_controller import AutoSubsController
 
 class MainWindow(tk.Tk):
     def __init__(self):
@@ -70,6 +70,12 @@ class MainWindow(tk.Tk):
 
         # Transcribe Settings
         step4 = ttk.LabelFrame(frame, text="Transcribe Settings", padding=10)
+        
+        ttk.Label(step4, text="Select Transcibe:").pack(anchor="w", pady=(10, 0))
+        self.transciber_s_combo = ttk.Combobox(step4, values=["whisperx", "whisperx-chunked", "stable"])
+        self.transciber_s_combo.set("whisperx")
+        self.transciber_s_combo.pack(fill="x")
+        
         ttk.Label(step4, text="Select Language:").pack(anchor="w")
         self.language_combo = ttk.Combobox(step4, values=["English", "French", "Spanish", "German", "Italian", "Portuguese", "Detect"])
         self.language_combo.set("English")
@@ -79,6 +85,8 @@ class MainWindow(tk.Tk):
         self.model_size_combo = ttk.Combobox(step4, values=["tiny", "small", "medium", "large", "large-v3"])
         self.model_size_combo.set("tiny")
         self.model_size_combo.pack(fill="x")
+        
+        
 
         ttk.Label(step4, text="Words per Subtitle:").pack(anchor="w", pady=(10, 0))
         self.words_per_subtitle_edit = ttk.Entry(step4)

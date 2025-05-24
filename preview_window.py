@@ -2,7 +2,8 @@ import tkinter as tk
 from tkinter import ttk, filedialog
 import pygame
 
-from helpers import read_srt, format_timestamp
+
+from utils.srt_utils import read_srt
 
 class PreviewWindow(tk.Toplevel):
     def __init__(self, master, audio_path, srt_path):

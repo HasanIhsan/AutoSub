@@ -1,6 +1,4 @@
-from helpers import format_timestamp
-import json
-
+from utils.srt_utils import format_timestamp
 
 class Exporter:
     @staticmethod

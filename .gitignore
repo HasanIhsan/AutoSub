@@ -1,4 +1,2 @@
-/audio
-/*__pycache__
-/output
+__pycache__/
 /requirements.txt
