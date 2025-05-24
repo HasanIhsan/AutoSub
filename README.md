@@ -2,6 +2,7 @@
 > This project has been only tested on WSL Ubuntu
 > I don't know if it works on windows (mainly because of SOX and other libs)
 > but it should work fine
+> Also The project has "killed" itself mulitiple times (mainly becasue i don't have any garbage collection, and its running in WSL) (will try to fix soon)
 
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![GitHub issues](https://img.shields.io/github/issues/HasanIhsan/AutoSub)](https://github.com/HasanIhsan/AutoSub/issues)
