@@ -1,0 +1,7 @@
+pip install pydub
+pip install noisereduce
+pip install numpy
+pip install torch                      # or “torch-cpu” if no GPU
+pip install whisperx
+pip install git+https://github.com/jianfch/stable-ts.git
+pip install pygame

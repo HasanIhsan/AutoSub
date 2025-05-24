@@ -37,7 +37,7 @@ def read_srt(file_path: str):
 
 
 def smooth_srt(subs, min_gap=0.1, min_duration=0.5):
-    from utils.srt_utils import format_timestamp, srt_time_to_seconds
+    
     smoothed, prev, prev_start, prev_end = [], None, None, None
     for curr in subs:
         try:

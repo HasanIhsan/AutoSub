@@ -1,5 +1,6 @@
 def get_language_code(language_str: str) -> str:
     if language_str.lower() == "detect":
+        print("Language detection...")
         return None
     mapping = {
         "english": "en", "french": "fr", "spanish": "es",

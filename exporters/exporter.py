@@ -95,7 +95,7 @@ class Exporter:
                     if prev_end is not None and (start - prev_end) > pause_thre:
                         # Write current group
                         if group_text:
-                            start_str = format_timestamp(group_start)
+                            start_str = format_timestamp(group_start if group_start is not None else 0.0)
                             end_str = format_timestamp(prev_end)
                             f.write(f"{srt_index}\n")
                             f.write(f"{start_str} --> {end_str}\n")
@@ -109,8 +109,8 @@ class Exporter:
                     prev_end = end
 
                     if len(group_text) >= words_per_subtitle:
-                        start_str = format_timestamp(group_start)
-                        end_str = format_timestamp(group_end)
+                        start_str = format_timestamp(group_start if group_start is not None else 0.0)
+                        end_str = format_timestamp(group_end if group_end is not None else 0.0)
                         f.write(f"{srt_index}\n")
                         f.write(f"{start_str} --> {end_str}\n")
                         f.write(f"{' '.join(group_text)}\n\n")
@@ -119,8 +119,8 @@ class Exporter:
                         group_start = None
 
                 if group_text:
-                    start_str = format_timestamp(group_start)
-                    end_str = format_timestamp(group_end)
+                    start_str = format_timestamp(group_start if group_start is not None else 0.0)
+                    end_str = format_timestamp(group_end if group_end is not None else 0.0)
                     f.write(f"{srt_index}\n")
                     f.write(f"{start_str} --> {end_str}\n")
                     f.write(f"{' '.join(group_text)}\n\n")

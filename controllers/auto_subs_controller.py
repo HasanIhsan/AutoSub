@@ -77,7 +77,11 @@ class AutoSubsController:
         # If using chunked whisperx, .transcribe writes the SRT itself.
         # Now smooth and re-export
         subtitles = read_srt("output/whisperx_transcript.srt")
+        print(f"Loaded {len(subtitles)} subtitles")
+        
         smoothed = smooth_srt(subtitles, min_gap=0.1, min_duration=0.5)
+        
+        print(f"Original subs: {len(subtitles)}, Smoothed subs: {len(smoothed)}")
         Exporter.re_export_srt(smoothed, "output/refinedT.srt")
         self.ui.update_timeline(smoothed)
 

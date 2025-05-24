@@ -12,6 +12,7 @@ class AudioPreprocessor:
             Requires pydub. (3/18/25)
         """
         
+        normalized = None
         try:
             
             # Make sure output directory exists
@@ -50,8 +51,13 @@ class AudioPreprocessor:
             print("Error during audio pre-processing:", e)
             # Fallback: return the normalized version
             try:
-                normalized.export(output_file, format="wav")
-                print(f"Exported normalized audio (no noise reduction) to {output_file}")
-                return output_file
+                if normalized is not None:
+                    normalized.export(output_file, format="wav")
+                    print(f"Exported normalized audio (no noise reduction) to {output_file}")
+                    return output_file
+                else:
+                    print(f"Using original input file as fallback: {input_file}")
+                    return input_file
+                
             except:
                 return input_file
