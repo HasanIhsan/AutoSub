@@ -16,7 +16,9 @@ AutoSubs is an automated subtitle generation tool that transforms audio content 
 🔧 Audio preprocessing with noise reduction
 
 ⚙️ Adjustable subtitle parameters (words per subtitle, model sizes)
+
 ✏️ Subtitle timeline editor with live preview
+
 🚀 Batch processing for long audio files (chunked processing)
 
 Perfect for content creators, translators, and video producers needing accurate, customizable subtitles.
